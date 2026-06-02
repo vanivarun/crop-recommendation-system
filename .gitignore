@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.dylib
+*.pyd
+
+# Virtual environment
+venv/
+.venv/
+ENV/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDEs
+.vscode/
+*.code-workspace
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and reports
+*.log
+coverage/
+htmlcov/
+.pytest_cache/
+
+# Streamlit
+.streamlit/
+
+# Data and model artifacts
+*.csv
+*.joblib
+*.pkl
+
+# Local env files
+.env
+.env.*

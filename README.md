@@ -38,7 +38,6 @@ The model is trained on real crop data to help farmers and agriculturists make i
 
 
 ## 📂 Project Structure
-can i
 
 crop-recommendation-system/
 │
@@ -82,11 +81,13 @@ source venv/bin/activate
 
 ### 3. Install dependencies
 
-
 pip install -r requirements.txt
 
+### 4. Run tests (optional)
 
-### 4. Train the model (optional)
+python -m unittest discover -s tests
+
+### 5. Train the model (optional)
 
 
 python src/train_model.py
@@ -94,21 +95,19 @@ python src/train_model.py
 
 ### 5. Make predictions via CLI
 
-
 python src/predict.py <N> <P> <K> <temperature> <humidity> <ph> <rainfall>
-
 
 **Example:**
 
+python src/predict.py 50 40 39 25 80 6.5 200
 
-python src/predict.py 50 40 39 398 100 14 200
+**Output (JSON):**
 
+{"predicted": "papaya", "probabilities": [["papaya", 0.82], ["mango", 0.10], ["banana", 0.08]]}
 
-**Output:**
+You can also specify a custom model directory:
 
-
-Recommended Crop: Papaya
-
+python src/predict.py --model-dir models 50 40 39 25 80 6.5 200
 
 ### 6. Run the Streamlit Web App (optional)
 
