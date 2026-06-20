@@ -1,555 +1,757 @@
+# app.py
 import streamlit as st
 import joblib
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, accuracy_score
 import pandas as pd
 import requests
 from pathlib import Path
+from src.predict import predict, validate_inputs
+from src.weather import fetch_location_weather, weather_description
 
 st.set_page_config(
-    page_title="Crop Recommendation System",
+    page_title="AgriSense — Crop Intelligence",
     page_icon="🌾",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-st.markdown(
-    """
-    <style>
-        body, .stApp {
-            background: linear-gradient(180deg, #0f3b2f 0%, #1a5d48 50%, #2d8a7e 100%);
-            min-height: 100vh;
-        }
-        .stAppViewContainer {
-            background: linear-gradient(180deg, #0f3b2f 0%, #1a5d48 50%, #2d8a7e 100%);
-        }
-        .stMain {
-            background: linear-gradient(135deg, rgba(255,255,255,0.97) 0%, rgba(240,249,245,0.98) 100%);
-            border-radius: 35px;
-            margin: 2rem 1.5rem;
-            padding: 0;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-        }
-        .block-container {
-            padding: 3rem 3.5rem;
-            max-width: 1800px;
-        }
-        .stButton>button {
-            background: linear-gradient(135deg, #00d084 0%, #00a86b 100%);
-            color: white;
-            border-radius: 16px;
-            padding: 1.1rem 2rem;
-            font-weight: 900;
-            border: none;
-            box-shadow: 0 12px 30px rgba(0, 208, 132, 0.35);
-            font-size: 16px;
-            letter-spacing: 0.5px;
-            transition: all 0.3s ease;
-        }
-        .stButton>button:hover {
-            background: linear-gradient(135deg, #00a86b 0%, #007a52 100%);
-            box-shadow: 0 16px 45px rgba(0, 208, 132, 0.5);
-            transform: translateY(-2px);
-        }
-        .stButton>button:active {
-            transform: translateY(0px);
-        }
-        .stMetric {
-            border-radius: 24px;
-            background: linear-gradient(135deg, #ffffff 0%, #f5fdf8 100%);
-            border: 2px solid rgba(0, 208, 132, 0.2);
-            box-shadow: 0 12px 35px rgba(0, 208, 132, 0.12);
-            padding: 2rem;
-        }
-        .stSidebar {
-            background: linear-gradient(180deg, #0f3b2f 0%, #1a5d48 100%);
-        }
-        .stSidebar .css-1d391kg,
-        .stSidebar section,
-        .stSidebar .element-container {
-            padding: 1.5rem;
-            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,249,245,0.98) 100%) !important;
-            color: #0f3b2f !important;
-            border-radius: 24px;
-            box-shadow: 0 15px 45px rgba(0,0,0,0.2);
-            border: 2px solid rgba(0, 208, 132, 0.15);
-            margin-bottom: 1.2rem;
-        }
-        .stSidebar label,
-        .stSidebar .stMarkdown p,
-        .stSidebar .stMarkdown h2,
-        .stSidebar .stMarkdown h3,
-        .stSidebar .stTextInput label,
-        .stSidebar .stNumberInput label {
-            color: #0f3b2f !important;
-            font-weight: 800;
-            font-size: 15px;
-            letter-spacing: 0.3px;
-        }
-        .stSidebar input,
-        .stSidebar textarea,
-        .stSidebar select,
-        .stSidebar .stNumberInput>div>div,
-        .stSidebar .stTextInput>div>div,
-        .stSidebar .stSelectbox>div>div {
-            background: rgba(255, 255, 255, 0.99) !important;
-            color: #0f3b2f !important;
-            border-radius: 14px;
-            border: 2px solid rgba(0, 208, 132, 0.25) !important;
-            padding: 0.9rem !important;
-            font-weight: 700 !important;
-        }
-        .stSidebar input:focus,
-        .stSidebar input:hover {
-            border-color: rgba(0, 208, 132, 0.6) !important;
-            background: rgba(240,249,245,0.99) !important;
-        }
-        .stSidebar .stButton>button {
-            width: 100%;
-            padding: 1.2rem 0.75rem;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #00d084 0%, #00a86b 100%) !important;
-            color: white !important;
-            font-weight: 900;
-            box-shadow: 0 12px 30px rgba(0, 208, 132, 0.35);
-            font-size: 16px;
-            letter-spacing: 0.5px;
-        }
-        .streamlit-expanderHeader {
-            font-weight: 900;
-            color: #0f3b2f !important;
-        }
-        .card {
-            background: linear-gradient(135deg, #ffffff 0%, #f5fdf8 100%);
-            border-radius: 32px;
-            padding: 2.5rem;
-            box-shadow: 0 15px 50px rgba(0, 208, 132, 0.12);
-            margin-bottom: 2rem;
-            border: 2px solid rgba(0, 208, 132, 0.12);
-            transition: all 0.3s ease;
-        }
-        .card:hover {
-            box-shadow: 0 20px 60px rgba(0, 208, 132, 0.18);
-            transform: translateY(-2px);
-        }
-        .card-highlight {
-            background: linear-gradient(135deg, #00d084 0%, #00a86b 100%);
-            border-radius: 32px;
-            padding: 3rem 2.5rem;
-            box-shadow: 0 20px 60px rgba(0, 208, 132, 0.3);
-            margin-bottom: 2rem;
-            border: none;
-        }
-        .card-highlight * {
-            color: white !important;
-        }
-        .stDataFrame table {
-            background: rgba(255,255,255,0.99) !important;
-            border-radius: 16px;
-        }
-        .element-container {
-            background: rgba(255,255,255,0.98);
-            border-radius: 24px;
-        }
-        .hero-title {
-            color: white !important;
-            font-size: 64px !important;
-            line-height: 1.1 !important;
-            font-weight: 900 !important;
-            letter-spacing: -1px;
-        }
-        .hero-subtitle {
-            color: rgba(255,255,255,0.95) !important;
-            font-size: 20px !important;
-            font-weight: 600 !important;
-            letter-spacing: 0.3px;
-        }
-        .card h2 {
-            margin-bottom: 1rem;
-            color: #00a86b;
-            font-size: 32px;
-            font-weight: 900;
-            letter-spacing: -0.5px;
-        }
-        .card h3 {
-            color: #0f3b2f;
-            font-size: 24px;
-            font-weight: 800;
-            letter-spacing: -0.3px;
-        }
-        .card h4 {
-            color: #1a5d48;
-            font-size: 18px;
-            font-weight: 800;
-        }
-        .card p {
-            color: #0f3b2f;
-            font-size: 16px;
-            line-height: 1.8;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            color: #0f3b2f !important;
-            font-weight: 900 !important;
-            letter-spacing: -0.5px;
-        }
-        p {
-            color: #1a5d48 !important;
-        }
-        .stMarkdown {
-            color: #1a5d48 !important;
-        }
-        .info-badge {
-            display: inline-block;
-            padding: 0.7rem 1.4rem;
-            background: linear-gradient(135deg, rgba(0, 208, 132, 0.15) 0%, rgba(0, 168, 107, 0.1) 100%);
-            border: 2px solid rgba(0, 208, 132, 0.3);
-            border-radius: 24px;
-            color: #0a5d48;
-            font-weight: 800;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# Base paths
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR  = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "models"
 DATA_PATH = BASE_DIR / "data" / "crop_data.csv"
 
-# Load trained model and preprocessing tools
-model = joblib.load(MODEL_DIR / "rf_crop_model.joblib")
-scaler = joblib.load(MODEL_DIR / "scaler.joblib")
-label_encoder = joblib.load(MODEL_DIR / "label_encoder.joblib")
-feature_names = joblib.load(MODEL_DIR / "feature_names.joblib")
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600&display=swap');
 
-try:
-    dataset = pd.read_csv(DATA_PATH)
-    dataset_rows = dataset.shape[0]
-except Exception:
-    dataset = None
-    dataset_rows = "N/A"
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+#MainMenu, footer, header { visibility: hidden; }
+.block-container { padding: 0 !important; max-width: 100% !important; }
+section[data-testid="stSidebar"] { display: none !important; }
 
-# App title
-st.markdown(
-    """
-    <div class='card-highlight' style='text-align: center; padding: 4rem 2.5rem; border-radius: 40px;'>
-        <div style='margin-bottom: 1.5rem; font-size: 72px; animation: pulse 2s infinite;'>🌾</div>
-        <p style='margin: 0; color: rgba(255,255,255,0.9); font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px;'>🌱 Agricultural Intelligence</p>
-        <h1 class='hero-title' style='margin: 1rem 0 1rem; font-size: 68px; text-shadow: 0 4px 15px rgba(0,0,0,0.2);'>Crop Recommendation</h1>
-        <p class='hero-subtitle' style='margin: 0 0 2rem; font-size: 22px; max-width: 900px; margin-left: auto; margin-right: auto;'>Intelligent predictions powered by machine learning • Tailored to your soil and climate</p>
-        <div style='margin-top: 2rem; display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap;'>
-            <span class='info-badge' style='background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: white;'>✨ AI Powered</span>
-            <span class='info-badge' style='background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: white;'>🎯 99.9% Accuracy</span>
-            <span class='info-badge' style='background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: white;'>⚡ Real-Time</span>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+/* ── HERO ── */
+.hero-wrap {
+    position: relative;
+    width: 100%;
+    min-height: 92vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #0d1f14;
+}
+.hero-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: 0.45;
+    filter: saturate(1.1) contrast(1.05);
+}
+.hero-overlay {
+    position: absolute; inset: 0;
+    background:
+        linear-gradient(to bottom, rgba(5,15,8,0.3) 0%, rgba(5,15,8,0.1) 40%, rgba(5,15,8,0.65) 100%),
+        linear-gradient(to right, rgba(5,15,8,0.5) 0%, transparent 60%);
+}
+.hero-content {
+    position: relative; z-index: 2;
+    max-width: 760px; padding: 4rem 3rem;
+}
+.hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(134,220,120,0.18);
+    border: 1px solid rgba(134,220,120,0.4);
+    color: #a8f0a0; font-size: 11px; font-weight: 600;
+    letter-spacing: 2.5px; text-transform: uppercase;
+    padding: 6px 16px; border-radius: 100px; margin-bottom: 1.5rem;
+}
+.hero-tag::before { content: ''; width:7px; height:7px; background:#6ee86e; border-radius:50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
 
-st.write("")
+.hero-title {
+    font-family: 'Fraunces', serif; font-size: clamp(42px, 6vw, 72px);
+    font-weight: 700; color: #f4f9f2; line-height: 1.08;
+    letter-spacing: -1.5px; margin-bottom: 1.25rem;
+}
+.hero-title em { color: #86dc78; font-style: italic; font-weight: 300; }
+.hero-sub {
+    font-size: 17px; color: rgba(255,255,255,0.7); font-weight: 300;
+    line-height: 1.75; max-width: 520px; margin-bottom: 2.5rem;
+}
+.hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.btn-primary {
+    background: #86dc78; color: #0d2010; font-weight: 600; font-size: 15px;
+    padding: 14px 32px; border-radius: 100px; border: none; cursor: pointer;
+    text-decoration: none; display: inline-block;
+    transition: all 0.2s; letter-spacing: -0.2px;
+}
+.btn-primary:hover { background: #a4ec96; transform: translateY(-1px); }
+.btn-ghost {
+    background: transparent; color: rgba(255,255,255,0.8); font-weight: 500;
+    font-size: 15px; padding: 14px 28px; border-radius: 100px;
+    border: 1px solid rgba(255,255,255,0.3); cursor: pointer;
+    text-decoration: none; display: inline-block; transition: all 0.2s;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,0.7); color: #fff; }
 
-st.markdown(
-    """
-    <div class='card'>
-        <h2 style='color: #00a86b; font-size: 36px; margin-top: 0;'>🤖 Model Information</h2>
-        <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2rem;'>
-            <div style='background: linear-gradient(135deg, #00d084 0%, #00a86b 100%); border-radius: 24px; padding: 2rem; text-align: center; box-shadow: 0 12px 35px rgba(0, 208, 132, 0.25); color: white; transition: all 0.3s ease;'>
-                <p style='margin: 0 0 0.5rem; font-size: 14px; font-weight: 800; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;'>Algorithm</p>
-                <h3 style='margin: 0; font-size: 42px; font-weight: 900; color: white;'>Random<br>Forest</h3>
-                <p style='margin: 0.5rem 0 0; font-size: 13px; opacity: 0.95;'>200 Estimators</p>
-            </div>
-            <div style='background: linear-gradient(135deg, #1a9d7e 0%, #0f7c6b 100%); border-radius: 24px; padding: 2rem; text-align: center; box-shadow: 0 12px 35px rgba(15, 124, 107, 0.25); color: white; transition: all 0.3s ease;'>
-                <p style='margin: 0 0 0.5rem; font-size: 14px; font-weight: 800; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;'>Training Data</p>
-                <h3 style='margin: 0; font-size: 42px; font-weight: 900; color: white;'>{}</h3>
-                <p style='margin: 0.5rem 0 0; font-size: 13px; opacity: 0.95;'>Samples</p>
-            </div>
-            <div style='background: linear-gradient(135deg, #0f6d5d 0%, #084f47 100%); border-radius: 24px; padding: 2rem; text-align: center; box-shadow: 0 12px 35px rgba(8, 79, 71, 0.25); color: white; transition: all 0.3s ease;'>
-                <p style='margin: 0 0 0.5rem; font-size: 14px; font-weight: 800; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;'>Crop Varieties</p>
-                <h3 style='margin: 0; font-size: 42px; font-weight: 900; color: white;'>{}</h3>
-                <p style='margin: 0.5rem 0 0; font-size: 13px; opacity: 0.95;'>Categories</p>
-            </div>
-        </div>
-    </div>
-    """.format(dataset_rows, len(label_encoder.classes_)),
-    unsafe_allow_html=True,
-)
+.hero-stats {
+    position: absolute; bottom: 2.5rem; left: 3rem; right: 3rem;
+    z-index: 2; display: flex; gap: 2rem; flex-wrap: wrap;
+}
+.hero-stat { border-left: 2px solid rgba(134,220,120,0.5); padding-left: 1rem; }
+.hero-stat-val { font-family:'Fraunces',serif; font-size:28px; font-weight:700; color:#f4f9f2; line-height:1; }
+.hero-stat-lbl { font-size:11px; color:rgba(255,255,255,0.5); letter-spacing:1px; text-transform:uppercase; margin-top:4px; }
 
-st.write("")
+/* ── MAIN CONTENT ── */
+.main-wrap { max-width: 1140px; margin: 0 auto; padding: 5rem 2rem; }
 
-st.markdown(
-    """
-    <div class='card' style='background: linear-gradient(135deg, rgba(255,255,255,0.99) 0%, rgba(240,249,245,0.98) 100%);'>
-        <h2 style='margin-top: 0; color: #00a86b; font-size: 36px;'>📖 How It Works</h2>
-        <div style='margin-top: 2.5rem;'>
-            <div style='display: flex; gap: 2rem; margin-bottom: 2.5rem; align-items: flex-start;'>
-                <div style='min-width: 60px; height: 60px; background: linear-gradient(135deg, #00d084 0%, #00a86b 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 900; box-shadow: 0 8px 20px rgba(0, 208, 132, 0.3); flex-shrink: 0;'>1</div>
-                <div>
-                    <h4 style='margin: 0; color: #0f3b2f; font-weight: 900; font-size: 20px;'>Enter Your Soil & Weather Data</h4>
-                    <p style='margin: 0.7rem 0 0; color: #1a5d48; font-size: 16px; line-height: 1.7;'>Input nitrogen (N), phosphorus (P), potassium (K), temperature, humidity, pH level, and rainfall in the sidebar. Use typical values for your region.</p>
-                </div>
-            </div>
-            <div style='display: flex; gap: 2rem; margin-bottom: 2.5rem; align-items: flex-start;'>
-                <div style='min-width: 60px; height: 60px; background: linear-gradient(135deg, #1a9d7e 0%, #0f7c6b 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 900; box-shadow: 0 8px 20px rgba(15, 124, 107, 0.3); flex-shrink: 0;'>2</div>
-                <div>
-                    <h4 style='margin: 0; color: #0f3b2f; font-weight: 900; font-size: 20px;'>Click Recommend Crop</h4>
-                    <p style='margin: 0.7rem 0 0; color: #1a5d48; font-size: 16px; line-height: 1.7;'>Our Random Forest algorithm processes your data and instantly computes crop suitability scores across all available varieties.</p>
-                </div>
-            </div>
-            <div style='display: flex; gap: 2rem; align-items: flex-start;'>
-                <div style='min-width: 60px; height: 60px; background: linear-gradient(135deg, #0f6d5d 0%, #084f47 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: 900; box-shadow: 0 8px 20px rgba(8, 79, 71, 0.3); flex-shrink: 0;'>3</div>
-                <div>
-                    <h4 style='margin: 0; color: #0f3b2f; font-weight: 900; font-size: 20px;'>View Results & Insights</h4>
-                    <p style='margin: 0.7rem 0 0; color: #1a5d48; font-size: 16px; line-height: 1.7;'>See top crop recommendations with confidence scores, detailed descriptions from Wikipedia, and model performance analytics.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+/* Section heading */
+.sec-eyebrow {
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:#86dc78;
+    margin-bottom:.5rem;
+}
+
+.sec-title {
+    font-family:'Fraunces',serif;
+    font-size:clamp(28px,3.5vw,42px);
+    font-weight:700;
+    color:#ffffff;
+    line-height:1.15;
+    letter-spacing:-0.5px;
+    margin-bottom:1rem;
+}
+
+.sec-sub {
+    font-size:15px;
+    color:rgba(255,255,255,0.75);
+    line-height:1.7;
+    max-width:560px;
+}
+/* ── MODE TOGGLE ── */
+.mode-tabs { display:flex; gap:0; border-radius:14px; overflow:hidden; border:1.5px solid #c8e6c4; margin-bottom:2.5rem; }
+.mode-tab { flex:1; padding:1rem 1.5rem; background:#fff; cursor:pointer; transition:all .2s; text-align:center; }
+.mode-tab:first-child { border-right:1.5px solid #c8e6c4; }
+.mode-tab.active { background:#0d2010; }
+.mode-tab-icon { font-size:22px; display:block; margin-bottom:.3rem; }
+.mode-tab-title { font-size:14px; font-weight:600; color:#0d2010; }
+.mode-tab.active .mode-tab-title { color:#86dc78; }
+.mode-tab-sub { font-size:11px; color:#7a9a80; margin-top:.2rem; }
+.mode-tab.active .mode-tab-sub { color:rgba(255,255,255,.5); }
+
+/* ── FORM CARDS ── */
+.form-section { background:#fff; border:1.5px solid #e0ede5; border-radius:20px; padding:1.25rem; margin-bottom:1rem; }
+.form-section-title { font-size:11px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:#3d8b5e; margin-bottom:1.5rem; padding-bottom:.75rem; border-bottom:1.5px solid #e8f2ea; }
+
+/* Farmer question cards */
+.q-card { background:#f7fbf8; border:1px solid #ddeee2; border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
+.q-label { font-size:13px; font-weight:600; color:#ffffff; margin-bottom:.5rem; }
+.q-hint  { font-size:11px; color:rgba(255,255,255,0.65); margin-bottom:.75rem; line-height:1.5; }
+
+/* Info callout */
+.callout { display:flex; gap:1rem; align-items:flex-start; background:#f0faf3; border:1px solid #b8e0c4; border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:2rem; }
+.callout-icon { font-size:20px; flex-shrink:0; }
+.callout-text { font-size:13px; color:#2a5a3a; line-height:1.6; }
+.callout-text strong { color:#0d2010; }
+
+/* Estimated values strip */
+.est-strip { background:#0d2010; border-radius:16px; padding:1.5rem 2rem; margin:1.5rem 0; display:grid; grid-template-columns:repeat(7,1fr); gap:1rem; }
+.est-item { text-align:center; }
+.est-val { font-family:'Fraunces',serif; font-size:22px; font-weight:700; color:#86dc78; display:block; }
+.est-lbl { font-size:10px; color:rgba(255,255,255,.5); letter-spacing:1px; text-transform:uppercase; margin-top:3px; }
+
+/* ── RESULT ── */
+.result-hero {
+    background: linear-gradient(135deg,#0d2010 0%,#1a4a2e 50%,#0d3018 100%);
+    border-radius: 24px; padding: 3rem; margin-bottom: 2rem;
+    display: flex; align-items: center; gap: 3rem;
+    position: relative; overflow: hidden;
+}
+.result-hero::before {
+    content:''; position:absolute; right:-60px; top:-60px;
+    width:300px; height:300px; border-radius:50%;
+    background:radial-gradient(circle,rgba(134,220,120,.15) 0%,transparent 70%);
+}
+.result-crop-name { font-family:'Fraunces',serif; font-size:58px; font-weight:700; color:#f4f9f2; line-height:1; letter-spacing:-2px; }
+.result-conf-badge { display:inline-block; background:rgba(134,220,120,.2); border:1px solid rgba(134,220,120,.4); color:#86dc78; font-size:13px; font-weight:600; padding:5px 16px; border-radius:100px; margin-top:.75rem; }
+.result-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:.5rem; }
+
+.conf-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+.conf-card { background:#fff; border:1.5px solid #e0ede5; border-radius:16px; padding:1.25rem; text-align:center; transition:border-color .2s; }
+.conf-card:first-child { border-color:#86dc78; }
+.conf-rank { font-size:10px; color:#7a9a80; letter-spacing:2px; text-transform:uppercase; margin-bottom:.35rem; }
+.conf-crop { font-family:'Fraunces',serif; font-size:18px; font-weight:700; color:#0d2010; text-transform:capitalize; margin-bottom:.25rem; }
+.conf-pct  { font-size:26px; font-weight:700; color:#2d7a4f; }
+.conf-bar-bg { background:#e8f4ea; border-radius:100px; height:4px; margin-top:.75rem; overflow:hidden; }
+.conf-bar    { background:linear-gradient(90deg,#2d7a4f,#86dc78); height:100%; border-radius:100px; }
+
+/* ── SUMMARY TABLE ── */
+.summary-table { width:100%; border-collapse:collapse; }
+.summary-table th { background:#0d2010; color:rgba(255,255,255,.7); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:.6rem 1rem; text-align:left; }
+.summary-table td { padding:.6rem 1rem; font-size:13px; color:#1a3a28; border-bottom:1px solid #edf5ef; }
+.summary-table tr:last-child td { border-bottom:none; }
+.summary-table tr:hover td { background:#f5fbf7; }
+
+/* ── WIKI ── */
+.wiki-wrap { background:#f5fbf7; border:1.5px solid #c8e6d4; border-radius:18px; padding:1.5rem; height:100%; }
+.wiki-name { font-family:'Fraunces',serif; font-size:20px; color:#0d2010; margin-bottom:.6rem; }
+.wiki-desc { font-size:13px; color:#3a6040; line-height:1.75; margin-bottom:1rem; }
+.wiki-link { font-size:12px; font-weight:600; color:#2d7a4f; text-decoration:none; }
+
+/* ── PERFORMANCE SECTION ── */
+.perf-wrap { background:#0d2010; border-radius:24px; padding:3rem; margin-bottom:2rem; color:white; }
+.acc-number { font-family:'Fraunces',serif; font-size:80px; font-weight:700; color:#86dc78; line-height:1; }
+.acc-suffix { font-size:32px; color:rgba(134,220,120,.6); }
+.acc-label  { font-size:11px; letter-spacing:3px; color:rgba(255,255,255,.4); text-transform:uppercase; }
+.acc-note   { font-size:13px; color:rgba(255,255,255,.55); line-height:1.6; max-width:400px; margin-top:.75rem; }
+
+/* ── CHART WRAPPER ── */
+.chart-card { background:#fff; border:1.5px solid #e0ede5; border-radius:20px; padding:2rem; margin-bottom:1.5rem; }
+.chart-title { font-family:'Fraunces',serif; font-size:20px; color:#0d2010; margin-bottom:.3rem; }
+.chart-sub   { font-size:13px; color:#6a8a75; margin-bottom:1.25rem; }
+
+/* ── CTA strip at bottom ── */
+.cta-strip { background:linear-gradient(135deg,#0d2010,#1a4a2e); border-radius:24px; padding:3rem; text-align:center; margin-top:4rem; }
+.cta-title { font-family:'Fraunces',serif; font-size:32px; color:#f4f9f2; margin-bottom:.75rem; }
+.cta-sub { font-size:15px; color:rgba(255,255,255,.6); margin-bottom:1.75rem; }
+
+/* Streamlit widget overrides */
+div[data-testid="stSelectbox"] > label,
+div[data-testid="stNumberInput"] > label,
+div[data-testid="stSlider"] > label,
+div[data-testid="stRadio"] > label { display:none !important; }
+.stButton > button { border-radius:100px !important; font-weight:600 !important; }
+.stButton > button[kind="primary"] {
+    background:#86dc78 !important; color:#0d2010 !important;
+    border:none !important; font-size:15px !important; padding:.75rem 2rem !important;
+}
+.stButton > button[kind="secondary"] {
+    background:transparent !important; border:1.5px solid #c8e6c4 !important;
+    color:#2d7a4f !important;
+}
+div[data-baseweb="select"] > div { border-radius:10px !important; border-color:#d0e8d8 !important; }
+div[data-baseweb="input"] > div   { border-radius:10px !important; border-color:#d0e8d8 !important; }
+</style>
+""", unsafe_allow_html=True)
 
 
-st.markdown("")
+# ── Load artifacts ────────────────────────────────────────────────────────────
+@st.cache_resource
+def load_models():
+    return {
+        'model':    joblib.load(MODEL_DIR / 'rf_crop_model.joblib'),
+        'scaler':   joblib.load(MODEL_DIR / 'scaler.joblib'),
+        'le':       joblib.load(MODEL_DIR / 'label_encoder.joblib'),
+        'features': joblib.load(MODEL_DIR / 'feature_names.joblib'),
+        'cm':       joblib.load(MODEL_DIR / 'confusion_matrix.joblib')
+                    if (MODEL_DIR/'confusion_matrix.joblib').exists() else None,
+        'test_acc': joblib.load(MODEL_DIR / 'test_accuracy.joblib')
+                    if (MODEL_DIR/'test_accuracy.joblib').exists() else None,
+    }
 
-# Static crop descriptions (fallback)
-crop_info = {
-    "rice": "Rice is a staple cereal crop grown in flooded fields. Requires warm temperatures and ample water.",
-    "wheat": "Wheat is a cereal grain grown in temperate regions, used for flour and bread.",
-    "maize": "Maize (corn) is a versatile cereal crop used for food and feed.",
-    "apple": "Apples are a fruit tree crop grown in orchards.",
-    "banana": "Bananas are tropical fruit crops grown in warm, humid climates.",
-    "mango": "Mango is a tropical fruit tree valued for sweet fruits.",
-    "papaya": "Papaya is a tropical fruit crop that grows quickly and prefers warm climates.",
-    "cotton": "Cotton is a fiber crop used in textile production.",
-    "jute": "Jute is a fiber crop used for making burlap and ropes.",
+artifacts     = load_models()
+model         = artifacts['model']
+scaler        = artifacts['scaler']
+label_encoder = artifacts['le']
+feature_names = artifacts['features']
+try:    dataset_rows = pd.read_csv(DATA_PATH).shape[0]
+except: dataset_rows = 2200
+
+# ── Farmer mode mappings ──────────────────────────────────────────────────────
+SOIL_MAP = {
+    "Black (Dark / Cotton soil)":  {"N":80,"P":60,"K":80,"ph":7.2},
+    "Red / Laterite":              {"N":40,"P":30,"K":50,"ph":6.0},
+    "Sandy / Light brown":         {"N":25,"P":20,"K":30,"ph":6.5},
+    "Clay / Heavy / Sticky":       {"N":70,"P":55,"K":75,"ph":7.5},
+    "Loamy / Mixed (best soil)":   {"N":60,"P":45,"K":60,"ph":6.8},
+    "Alluvial (near river)":       {"N":90,"P":65,"K":85,"ph":7.0},
+}
+LAST_CROP_MAP = {
+    "Rice":                 {"N_adj":-15,"P_adj":-10,"K_adj":-20},
+    "Wheat":                {"N_adj":-10,"P_adj":-8, "K_adj":-12},
+    "Maize / Corn":         {"N_adj":-12,"P_adj":-9, "K_adj":-15},
+    "Cotton":               {"N_adj":-20,"P_adj":-15,"K_adj":-25},
+    "Sugarcane":            {"N_adj":-25,"P_adj":-12,"K_adj":-30},
+    "Vegetables":           {"N_adj":-8, "P_adj":-6, "K_adj":-10},
+    "Pulses / Lentils":     {"N_adj":10, "P_adj":5,  "K_adj":5},
+    "Nothing (fallow land)":{"N_adj":5,  "P_adj":3,  "K_adj":5},
+}
+RAIN_MAP = {
+    "Very dry  (< 500 mm/yr)":    {"rainfall":50, "humidity":28},
+    "Semi-arid (500–1000 mm/yr)": {"rainfall":120,"humidity":48},
+    "Moderate  (1000–1500 mm/yr)":{"rainfall":200,"humidity":68},
+    "Humid     (1500–2500 mm/yr)":{"rainfall":250,"humidity":84},
+    "Very wet  (> 2500 mm/yr)":   {"rainfall":290,"humidity":95},
+}
+TEMP_MAP = {
+    "Cool — Hills / Winter (< 15 °C)": 13.0,
+    "Mild — Spring / Autumn (15–25 °C)":22.0,
+    "Warm — Plains / Summer (25–35 °C)":30.0,
+    "Hot  — Arid / Peak summer (> 35 °C)":40.0,
+}
+
+CROP_EMOJI = {"rice":"🌾","wheat":"🌾","maize":"🌽","apple":"🍎","banana":"🍌",
+              "mango":"🥭","papaya":"🍈","cotton":"🌸","jute":"🌿","grapes":"🍇",
+              "orange":"🍊","coconut":"🥥","coffee":"☕","chickpea":"🫘",
+              "kidneybeans":"🫘","lentil":"🫘","blackgram":"🫘","mungbean":"🫘",
+              "mothbeans":"🫘","pigeonpeas":"🫘","muskmelon":"🍈","watermelon":"🍉",
+              "pomegranate":"🍎"}
+
+def fetch_wiki(name):
+    try:
+        r = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{name.replace(' ','_')}",
+                         timeout=3, headers={"User-Agent":"agrisense/1.0"})
+        if r.status_code != 200: return None
+        d = r.json()
+        return {"description":d.get("extract",""), "image":d.get("thumbnail",{}).get("source")}
+    except: return None
+
+FALLBACK = {
+    "rice":"Staple cereal grown in flooded paddies. Requires warm, wet conditions.",
+    "wheat":"Temperate cereal; the base of flour and bread worldwide.",
+    "maize":"Versatile corn crop used for food, feed, and biofuel.",
 }
 
 
-def fetch_crop_info_wikipedia(name: str, timeout: float = 3.0):
-    """Return (description, image_url) from Wikipedia summary API if available."""
-    try:
-        title = name.replace(" ", "_")
-        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
-        resp = requests.get(url, timeout=timeout, headers={"User-Agent": "crop-reco-app/1.0"})
-        if resp.status_code != 200:
-            return None
-        data = resp.json()
-        desc = data.get("extract")
-        image = None
-        thumb = data.get("thumbnail")
-        if isinstance(thumb, dict):
-            image = thumb.get("source")
-        return {"description": desc, "image": image}
-    except Exception:
-        return None
-
-
-def get_local_image(name: str):
-    """Return a local image path from assets/ if it exists for the given crop name."""
-    try:
-        assets_dir = BASE_DIR / "assets"
-        candidates = [f"{name}.jpg", f"{name}.png", f"{name}.jpeg", f"{name.lower()}.jpg", f"{name.lower()}.png"]
-        for c in candidates:
-            p = assets_dir / c
-            if p.exists():
-                return p
-        return None
-    except Exception:
-        return None
-
-
-def render_crop_card(crop_name: str, confidence: float, wiki_data: dict | None):
-    card_html = f"""
-    <div class='card'>
-        <div style='display:flex; align-items:center; justify-content:space-between; gap:1rem;'>
-            <div>
-                <h2>🌿 {crop_name.title()}</h2>
-                <p style='margin:0.25rem 0 0; color:#486146;'>Confidence: <strong>{confidence*100:.1f}%</strong></p>
-            </div>
+# ══════════════════════════════════════════════════════════════════════════════
+# HERO
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="hero-wrap">
+    <img class="hero-img"
+         src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1600&q=80&fit=crop"
+         alt="Golden wheat field at sunrise" />
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="hero-tag">AI-Powered Agriculture</div>
+        <h1 class="hero-title">
+            Grow the right crop,<br>
+            <em>every single season.</em>
+        </h1>
+        <p class="hero-sub">
+            AgriSense analyses your soil nutrients and climate conditions
+            to recommend the most profitable crop — backed by machine learning
+            trained on 2,200 real field samples.
+        </p>
+        <div class="hero-actions">
+            <a href="#crop-input" class="btn-primary">
+                Get Started Below ↓
+            </a>
+            <a href="#model-stats" class="btn-ghost">
+                View Model Stats
+            </a>
         </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
-    local_img = get_local_image(crop_name)
-    if local_img:
-        st.image(str(local_img.resolve()), use_column_width=True)
-    elif wiki_data and wiki_data.get("image"):
-        try:
-            st.image(wiki_data["image"], use_column_width=True)
-        except Exception:
-            pass
-    description = wiki_data.get("description") if wiki_data else None
-    if description:
-        st.write(description)
+    </div>
+    <div class="hero-stats">
+        <div class="hero-stat">
+            <div class="hero-stat-val">99.55%</div>
+            <div class="hero-stat-lbl">Test Accuracy</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-val">22</div>
+            <div class="hero-stat-lbl">Crop Varieties</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-val">2,200</div>
+            <div class="hero-stat-lbl">Training Samples</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-val">2</div>
+            <div class="hero-stat-lbl">Input Modes</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN CONTENT
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<div class="main-wrap">', unsafe_allow_html=True)
+
+# Anchor for Get Started button
+st.markdown(
+    '<div id="crop-input"></div>',
+    unsafe_allow_html=True
+)
+
+# Section heading
+st.markdown("""
+<div style="text-align:center; margin-bottom:3rem;">
+    <p class="sec-eyebrow" style="text-align:center;">Step 1</p>
+    <h2 class="sec-title" style="text-align:center; margin:0 auto .75rem;">How would you like to enter your field data?</h2>
+    <p class="sec-sub" style="text-align:center; margin:0 auto;">
+        Choose Farmer Mode if you don't have a soil test report.
+        Choose Expert Mode if you have exact soil lab values.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+# Mode toggle
+mode = st.radio("mode", ["👨‍🌾  Farmer Mode", "🔬  Expert Mode"], horizontal=True, label_visibility="collapsed")
+farmer_mode = "Farmer" in mode
+
+if farmer_mode:
+    st.markdown("""
+    <div class="callout">
+        <span class="callout-icon">💡</span>
+        <p class="callout-text">
+            <strong>No soil testing kit required.</strong>
+            Just look at your field and answer 5 simple questions — we'll calculate
+            the soil chemistry automatically using agricultural research data.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2, gap="large")
+    with c1:
+        st.markdown('<div class="form-section"><p class="form-section-title">🌍 Your Soil</p>', unsafe_allow_html=True)
+        st.markdown('<p class="q-label">What does your soil look like?</p><p class="q-hint">Pick the colour and texture closest to your field.</p>', unsafe_allow_html=True)
+        soil_color = st.selectbox("soil", list(SOIL_MAP.keys()), label_visibility="collapsed")
+        st.markdown('<p class="q-label" style="margin-top:.75rem;">What did you grow last season?</p><p class="q-hint">Previous crops leave nutrients behind — or take them away.</p>', unsafe_allow_html=True)
+        last_crop = st.selectbox("crop", list(LAST_CROP_MAP.keys()), label_visibility="collapsed")
+        st.markdown('<p class="q-label" style="margin-top:.75rem;">Do you use fertilizer or manure?</p>', unsafe_allow_html=True)
+        fertilizer = st.selectbox("fert", ["Yes — regularly","Sometimes","Rarely or never"], label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with c2:
+        st.markdown(
+            '<div class="form-section"><p class="form-section-title">🌤️ Live Weather + Climate</p>',
+            unsafe_allow_html=True
+        )
+
+        location = st.text_input(
+            "📍 Enter your city or village",
+            placeholder="e.g. Makthal, Warangal, Hyderabad"
+        )
+
+        st.markdown(
+            '<p class="q-label">How much rain does your area get?</p><p class="q-hint">Think about a full year of rainfall, not just one season.</p>',
+            unsafe_allow_html=True
+        )
+
+        rain_choice = st.selectbox(
+            "rain",
+            list(RAIN_MAP.keys()),
+            index=2,
+            label_visibility="collapsed"
+        )
+
+        st.markdown(
+            '<p class="q-label" style="margin-top:.75rem;">What temperature is it when you plant?</p><p class="q-hint">Pick the season or conditions at planting time.</p>',
+            unsafe_allow_html=True
+        )
+
+        temp_choice = st.selectbox(
+            "temp",
+            list(TEMP_MAP.keys()),
+            index=2,
+            label_visibility="collapsed"
+        )
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Calculate
+    base = SOIL_MAP[soil_color].copy()
+    adj  = LAST_CROP_MAP[last_crop]
+    rain = RAIN_MAP[rain_choice]
+    temp = TEMP_MAP[temp_choice]
+    if location.strip():
+        weather = fetch_location_weather(location)
     else:
-        st.write(crop_info.get(crop_name.lower(), "No description available for this crop."))
-    wiki = f"https://en.wikipedia.org/wiki/{crop_name.replace(' ', '_')}"
-    st.markdown(f"[Learn more on Wikipedia]({wiki})")
-    st.markdown("</div>", unsafe_allow_html=True)
+        weather = None
+     
+    fb   = {"Yes — regularly":1.2,"Sometimes":1.0,"Rarely or never":0.8}[fertilizer]
 
+    N_e  = max(5,  min(140, int((base["N"]+adj["N_adj"])*fb)))
+    P_e  = max(5,  min(145, int((base["P"]+adj["P_adj"])*fb)))
+    K_e  = max(5,  min(205, int((base["K"]+adj["K_adj"])*fb)))
+    ph_e = base["ph"]
+    rain_e = rain["rainfall"]
 
-# Input fields
-# Inputs in sidebar for a cleaner UI
-st.sidebar.title("Input Parameters")
-st.sidebar.markdown("Enter soil and weather values in the panel below, then click **Recommend Crop**.")
-st.sidebar.caption("Recommended ranges are shown for typical farming conditions.")
-N = st.sidebar.number_input("Nitrogen (N)", min_value=0, max_value=300, value=90, help="Soil nitrogen content in ppm (0-300)")
-P = st.sidebar.number_input("Phosphorus (P)", min_value=0, max_value=300, value=42, help="Soil phosphorus content in ppm (0-300)")
-K = st.sidebar.number_input("Potassium (K)", min_value=0, max_value=300, value=43, help="Soil potassium content in ppm (0-300)")
-temperature = st.sidebar.number_input("Temperature (°C)", min_value=-30.0, max_value=60.0, value=25.0, help="Average temperature in Celsius")
-humidity = st.sidebar.number_input("Humidity (%)", min_value=0.0, max_value=100.0, value=80.0, help="Relative humidity percentage")
-ph = st.sidebar.number_input("Soil pH", min_value=0.0, max_value=14.0, value=6.5, help="Soil pH (0-14)")
-rainfall = st.sidebar.number_input("Rainfall (mm)", min_value=0.0, value=200.0, help="Recent rainfall in mm")
-st.sidebar.markdown("---")
-st.sidebar.markdown("**Tip:** Start with typical values and adjust until the crop recommendation matches your local conditions.")
+    if weather:
+        temp_e = float( weather["temperature"])
+        hum_e = float(weather["humidity"])
+        if "rainfall" in weather:
+            rain_e = float(weather["rainfall"])
+    else:
+        temp_e = temp
+        hum_e = rain["humidity"]
+        
+    if weather:
+        desc, emoji = weather_description(
+            weather.get("weather_code", 0)
+        )
+        st.success(
+            f"📍 {weather['display_name'].split(',')[0]} | "
+            f"{emoji} {desc} | "
+            f"🌡️ {temp_e:.1f}°C | "
+            f"💧 {hum_e:.1f}%"
+        )
+        
+
+    st.markdown(f"""
+    <div class="est-strip">
+        <div class="est-item"><span class="est-val">{N_e}</span><span class="est-lbl">Nitrogen</span></div>
+        <div class="est-item"><span class="est-val">{P_e}</span><span class="est-lbl">Phosphorus</span></div>
+        <div class="est-item"><span class="est-val">{K_e}</span><span class="est-lbl">Potassium</span></div>
+        <div class="est-item"><span class="est-val">{temp_e:.1f}°</span><span class="est-lbl">Temp (°C)</span></div>
+        <div class="est-item"><span class="est-val">{hum_e:.1f}%</span><span class="est-lbl">Humidity</span></div>
+        <div class="est-item"><span class="est-val">{ph_e}</span><span class="est-lbl">Soil pH</span></div>
+        <div class="est-item"><span class="est-val">{rain_e}</span><span class="est-lbl">Rain (mm)</span></div>
+    </div>
+    <p style="font-size:12px;color:#7a9a80;text-align:center;margin-bottom:1.5rem;">
+        ↑ Estimated values calculated from your answers — used as model inputs
+    </p>
+    """, unsafe_allow_html=True)
+
+    values_to_predict = [N_e, P_e, K_e, temp_e, hum_e, ph_e, rain_e]
+
+else:
+    st.markdown("""
+    <div class="callout">
+        <span class="callout-icon">🔬</span>
+        <p class="callout-text">
+            <strong>Expert Mode.</strong>
+            Enter values from your soil test report or IoT sensors.
+            All ranges are based on the model's training data.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2 = st.columns(2, gap="large")
+    with c1:
+        st.markdown('<div class="form-section"><p class="form-section-title">🌱 Soil Nutrients</p>', unsafe_allow_html=True)
+        N  = st.number_input("Nitrogen — N (kg/ha)   [0–140]",   0,   140,  90,  1)
+        P  = st.number_input("Phosphorus — P (kg/ha) [5–145]",   5,   145,  42,  1)
+        K  = st.number_input("Potassium — K (kg/ha)  [5–205]",   5,   205,  43,  1)
+        ph = st.number_input("Soil pH                [3.5–9.95]", 3.5, 9.95, 6.5, 0.01, format="%.2f")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="form-section"><p class="form-section-title">🌦️ Climate Data</p>', unsafe_allow_html=True)
+        temperature = st.number_input("Temperature (°C)    [8–44]",   8.0, 44.0,  25.0, 0.1, format="%.1f")
+        humidity    = st.number_input("Humidity (%)        [14–100]", 14.0,100.0,  80.0, 0.1, format="%.1f")
+        rainfall    = st.number_input("Annual Rainfall (mm)[20–299]", 20.0,299.0, 200.0, 1.0, format="%.0f")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    values_to_predict = [N, P, K, temperature, humidity, ph, rainfall]
 
 # Predict button
-# Basic input validation
-invalid = False
-if not (0 <= ph <= 14):
-    st.sidebar.error("pH must be between 0 and 14")
-    invalid = True
-if temperature < -30 or temperature > 60:
-    st.sidebar.warning("Temperature out of typical range (-30 to 60 °C)")
-if rainfall < 0:
-    st.sidebar.error("Rainfall cannot be negative")
-    invalid = True
+st.markdown('<div style="text-align:center;margin:1rem 0 2rem;">', unsafe_allow_html=True)
+predict_btn = st.button("🌱  Analyse My Field & Recommend a Crop", type="primary", use_container_width=False)
+st.markdown('</div>', unsafe_allow_html=True)
 
-if st.sidebar.button("Recommend Crop") and not invalid:
-    # Prepare input features as DataFrame using saved feature order
-    try:
-        features_list = feature_names if isinstance(feature_names, (list, tuple)) else list(feature_names)
-        df_input = pd.DataFrame([[N, P, K, temperature, humidity, ph, rainfall]], columns=features_list)
-    except Exception:
-        df_input = pd.DataFrame([[N, P, K, temperature, humidity, ph, rainfall]], columns=["N", "P", "K", "temperature", "humidity", "ph", "rainfall"])
+# ── Result ─────────────────────────────────────────────────────────────────────
+if predict_btn:
+    errors = validate_inputs(values_to_predict)
+    if errors:
+        st.error("Some values are outside the valid range:\n" + "\n".join(f"- {e}" for e in errors))
+    else:
+        with st.spinner("Running model..."):
+            result = predict(values_to_predict, top_n=4)
 
-    # Scale and predict
-    X_scaled = scaler.transform(df_input)
-
-    try:
-        probs = model.predict_proba(X_scaled)[0]
-        class_names = label_encoder.inverse_transform(model.classes_)
-        proba_pairs = sorted(zip(class_names, probs), key=lambda x: x[1], reverse=True)
-
-        st.markdown("## 🌱 Recommendation Results")
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown("<h3 style='margin-bottom:0.5rem; color:#1f4e2f;'>Prediction Overview</h3>", unsafe_allow_html=True)
-        st.markdown("<p style='color:#4a5b4b; margin-top:0;'>Here are the top crop options based on your current inputs.</p>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        prediction_col, info_col = st.columns([2.5, 1])
-
-        with prediction_col:
-            for name, probability in proba_pairs[:4]:
-                st.markdown(
-                    f"<div class='card'><h4 style='margin-bottom:0.35rem; color:#1f4e2f;'>{name.title()}</h4><p style='margin:0 0 0.85rem; color:#4a5b4b;'>Confidence: <strong>{probability*100:.1f}%</strong></p></div>",
-                    unsafe_allow_html=True,
+        if 'error' in result:
+            st.error(f"Prediction error: {result['error']}")
+        else:
+            pairs = result['probabilities']
+            top_crop, top_conf = pairs[0]
+            if top_conf < 50:
+                st.warning(
+                    f"⚠️ Low confidence prediction ({top_conf:.1f}%). "
+                    "Consider verifying with a soil test for better accuracy."
                 )
+            elif top_conf < 75:
+                st.info(
+                   f"ℹ️ Moderate confidence ({top_conf:.1f}%). "
+                   "Result is likely correct but a soil test can confirm."
+                )
+            emoji = CROP_EMOJI.get(top_crop.lower(), "🌿")
 
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            st.markdown("<h4 style='color:#1f4e2f;'>Input Summary</h4>", unsafe_allow_html=True)
-            summary_table = pd.DataFrame(
-                {
-                    "Feature": ["Nitrogen (N)", "Phosphorus (P)", "Potassium (K)", "Temperature (°C)", "Humidity (%)", "pH value", "Rainfall (mm)"],
-                    "Value": [N, P, K, temperature, humidity, ph, rainfall],
-                }
-            )
-            st.table(summary_table)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-        with info_col:
-            best_crop = proba_pairs[0][0]
-            confidence = proba_pairs[0][1]
-            wiki_data = fetch_crop_info_wikipedia(best_crop)
-            render_crop_card(best_crop, confidence, wiki_data)
-
-    except Exception:
-        prediction = model.predict(X_scaled)
-        crop = label_encoder.inverse_transform(prediction)[0]
-        st.markdown("## 🌱 Recommendation Results")
-        st.markdown(
-            f"<div class='card'><h3 style='color:#1f4e2f;'>Recommended Crop</h3><p style='font-size:24px; margin:0.5rem 0 0;'><strong>{crop.title()}</strong></p></div>",
-            unsafe_allow_html=True,
-        )
-        wiki_data = fetch_crop_info_wikipedia(crop)
-        render_crop_card(crop, 1.0, wiki_data)
-
-# --- Model Performance Section ---
-st.write("")
-st.markdown(
-    """
-    <div style='text-align: center; margin: 3rem 0 2rem 0;'>
-        <h2 style='color: #00a86b; font-size: 42px; font-weight: 900; margin: 0; letter-spacing: -1px;'>📊 Model Performance</h2>
-        <p style='color: #1a5d48; font-size: 18px; margin: 1rem 0 0; font-weight: 600;'>Advanced Machine Learning Analytics</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-    <div class='card' style='background: linear-gradient(135deg, rgba(255,255,255,0.99) 0%, rgba(240,249,245,0.98) 100%);'>
-        <h3 style='margin-top: 0; color: #0f3b2f; font-size: 26px; font-weight: 900;'>Understanding the Confusion Matrix</h3>
-        <p style='color: #1a5d48; line-height: 1.8; font-size: 16px; margin-top: 1rem;'>
-            The confusion matrix shows how accurately our machine learning model predicts each crop type. 
-            <strong style='color: #0f3b2f;'>Darker blue colors</strong> indicate perfect predictions (where the model correctly identified the crop), 
-            while lighter colors show where the model occasionally confuses similar crops. 
-            This helps us understand the model's strengths and identifies crops that might need special attention.
-        </p>
-        <div style='background: linear-gradient(135deg, rgba(0, 208, 132, 0.08) 0%, rgba(0, 168, 107, 0.06) 100%); border-left: 4px solid #00d084; border-radius: 16px; padding: 1.5rem; margin-top: 1.5rem;'>
-            <p style='margin: 0; color: #0a5d48; font-weight: 800; font-size: 16px;'>💡 Pro Tip: A perfect diagonal line of dark blue means 100% accuracy!</p>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown("")
-
-try:
-    # Load dataset (to calculate metrics again)
-    data = pd.read_csv(DATA_PATH)
-    X = data.drop("label", axis=1)
-    y = data["label"]
-
-    # Scale and predict
-    X_scaled = scaler.transform(X)
-    y_pred = model.predict(X_scaled)
-
-    # Accuracy
-    acc = accuracy_score(label_encoder.transform(y), y_pred)
-    
-    st.markdown(
-        f"""
-        <div style='display: grid; grid-template-columns: 1fr; gap: 2rem; margin-bottom: 2rem;'>
-            <div style='background: linear-gradient(135deg, #00d084 0%, #00a86b 100%); border-radius: 32px; padding: 3rem 2.5rem; box-shadow: 0 20px 60px rgba(0, 208, 132, 0.3); text-align: center;'>
-                <p style='color: rgba(255,255,255,0.85); font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin: 0;'>Model Accuracy Score</p>
-                <p style='font-size: 72px; color: white; font-weight: 900; margin: 1.5rem 0 0.5rem;'>{acc*100:.1f}%</p>
-                <p style='color: rgba(255,255,255,0.9); font-size: 16px; margin: 0; font-weight: 600;'>Correct predictions across all {len(label_encoder.classes_)} crop varieties</p>
+            st.markdown(f"""
+            <div class="result-hero">
+                <div style="font-size:72px;flex-shrink:0">{emoji}</div>
+                <div>
+                    <p class="result-label">Best crop for your field</p>
+                    <p class="result-crop">{top_crop.title()}</p>
+                    <span class="result-conf-badge">✓ {top_conf:.1f}% confidence</span>
+                </div>
             </div>
+            """, unsafe_allow_html=True)
+
+            # Confidence grid
+            ranks = ["1st","2nd","3rd","4th"]
+            html = '<div class="conf-grid">'
+            for rank,(crop,pct) in zip(ranks,pairs):
+                e = CROP_EMOJI.get(crop.lower(),"🌿")
+                html += f"""<div class="conf-card">
+                    <p class="conf-rank">{rank} choice</p>
+                    <p style="font-size:28px;margin:.2rem 0">{e}</p>
+                    <p class="conf-crop">{crop.title()}</p>
+                    <p class="conf-pct">{pct:.1f}%</p>
+                    <div class="conf-bar-bg"><div class="conf-bar" style="width:{int(min(pct,100))}%"></div></div>
+                </div>"""
+            html += '</div>'
+            st.markdown(html, unsafe_allow_html=True)
+
+            # Table + wiki
+            tc, wc = st.columns([1.1, 1], gap="large")
+            labels = ["Nitrogen (N)","Phosphorus (P)","Potassium (K)","Temperature","Humidity","Soil pH","Rainfall"]
+            units  = ["kg/ha","kg/ha","kg/ha","°C","%","","mm"]
+            with tc:
+                st.markdown('<div class="chart-card"><p class="chart-title">Field Input Summary</p>', unsafe_allow_html=True)
+                tbl = '<table class="summary-table"><tr><th>Parameter</th><th>Unit</th><th>Value</th></tr>'
+                for lbl,unit,val in zip(labels,units,values_to_predict):
+                    tbl += f'<tr><td>{lbl}</td><td style="color:#7a9a80">{unit}</td><td style="font-weight:600">{val}</td></tr>'
+                tbl += '</table>'
+                st.markdown(tbl + '</div>', unsafe_allow_html=True)
+
+            with wc:
+                wiki = fetch_wiki(top_crop)
+                desc = (wiki.get("description") if wiki else None) or FALLBACK.get(top_crop.lower(),"")
+                if wiki and wiki.get("image"):
+                    try: st.image(wiki["image"], use_column_width=True)
+                    except: pass
+                st.markdown(f"""
+                <div class="wiki-wrap">
+                    <p class="wiki-name">{emoji} {top_crop.title()}</p>
+                    <p class="wiki-desc">{desc[:320]}{'…' if len(desc)>320 else ''}</p>
+                    <a class="wiki-link" href="https://en.wikipedia.org/wiki/{top_crop.replace(' ','_')}" target="_blank">
+                        Read full article on Wikipedia →
+                    </a>
+                </div>""", unsafe_allow_html=True)
+                st.markdown("### 🧠 Why This Crop?")
+                
+                st.success(f"✅ Temperature: {values_to_predict[3]}°C")
+                st.success(f"✅ Humidity: {values_to_predict[4]}%")
+                st.success(f"✅ Soil pH: {values_to_predict[5]}")
+                st.success(f"✅ Rainfall: {values_to_predict[6]} mm")
+                st.info(
+                    f"The model recommended **{top_crop.title()}** because the soil nutrients "
+                    f"and climate conditions closely match patterns learned during training."
+              )
+
+
+
+st.markdown(
+    '<div id="model-stats"></div>',
+    unsafe_allow_html=True
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MODEL PERFORMANCE
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<div style="margin-top:5rem;margin-bottom:2rem;">
+    <p class="sec-eyebrow">Performance</p>
+    <h2 class="sec-title">Model Analytics</h2>
+    <p class="sec-sub">Evaluated on data the model has never seen during training.</p>
+</div>
+""", unsafe_allow_html=True)
+
+if artifacts['test_acc'] is not None:
+    acc = artifacts['test_acc']
+    ac, tc2 = st.columns([1, 1.6], gap="large")
+    with ac:
+        st.markdown(f"""
+        <div class="perf-wrap">
+            <p class="acc-label">Test Set Accuracy</p>
+            <p class="acc-number">{acc*100:.1f}<span class="acc-suffix">%</span></p>
+            <p class="acc-note">
+                Measured on {int(dataset_rows*0.2):,} held-out samples.
+                The model correctly identified the right crop
+                <strong style="color:#86dc78">{int(acc*int(dataset_rows*0.2)):,} times
+                out of {int(dataset_rows*0.2):,}</strong>.
+            </p>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    
-    st.markdown("")
+        """, unsafe_allow_html=True)
+    with tc2:
+        st.markdown('<div class="chart-card"><p class="chart-title">Feature Importance</p><p class="chart-sub">Which soil/climate factors matter most?</p>', unsafe_allow_html=True)
+        fi_df = pd.DataFrame({'Feature':list(feature_names),'Importance':model.feature_importances_}).sort_values('Importance',ascending=True)
+        fig,ax = plt.subplots(figsize=(7,3))
+        fig.patch.set_facecolor('white'); ax.set_facecolor('white')
+        mx = fi_df['Importance'].max()
+        cols_fi = ['#0d2010' if v==mx else '#2d7a4f' if v>fi_df['Importance'].median() else '#a8dbb8' for v in fi_df['Importance']]
+        bars = ax.barh(fi_df['Feature'], fi_df['Importance'], color=cols_fi, height=0.55)
+        for bar,val in zip(bars,fi_df['Importance']):
+            ax.text(bar.get_width()+.003, bar.get_y()+bar.get_height()/2, f"{val:.3f}", va='center', fontsize=9, color='#1a3a28')
+        ax.set_xlim(0, mx*1.22); ax.set_xlabel("Importance", fontsize=10, color='#6a8a75')
+        ax.tick_params(colors='#1a3a28', labelsize=10)
+        for s in ax.spines.values(): s.set_visible(False)
+        ax.xaxis.grid(True, color='#eef5ef', linewidth=0.8); ax.set_axisbelow(True)
+        plt.tight_layout(); st.pyplot(fig)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Confusion Matrix
-    cm = confusion_matrix(label_encoder.transform(y), y_pred)
-    fig, ax = plt.subplots(figsize=(16, 12))
-    sns.heatmap(cm, annot=False, cmap="Blues", xticklabels=label_encoder.classes_, yticklabels=label_encoder.classes_, cbar_kws={'label': 'Number of Correct Predictions'}, linewidths=0.5, linecolor='#e0e0e0')
-    plt.xlabel("Predicted Crop", fontsize=14, fontweight='bold', color='#0f3b2f')
-    plt.ylabel("Actual Crop", fontsize=14, fontweight='bold', color='#0f3b2f')
-    plt.title("Crop Prediction Confusion Matrix - Darker Blue = More Accurate", fontsize=16, fontweight='bold', pad=25, color='#0f3b2f')
-    ax.set_facecolor('white')
-    fig.patch.set_facecolor('white')
-    st.pyplot(fig)
+with st.expander("📊 Advanced Model Metrics"):
+    if artifacts['cm'] is not None:
+        st.markdown(
+            '<div class="chart-card"><p class="chart-title">Confusion Matrix — Normalized (Test Set)</p><p class="chart-sub">Diagonal = correct predictions. 1.00 = perfect recall for that crop.</p>',
+            unsafe_allow_html=True
+        )
 
-except Exception as e:
-    st.warning("⚠️ Could not load dataset for metrics/visuals. Please ensure `data/crop_data.csv` exists.")
-    st.text(str(e))
+        cm_norm = artifacts['cm'].astype(float) / artifacts['cm'].sum(axis=1, keepdims=True)
+
+        fig2, ax2 = plt.subplots(figsize=(14,10))
+        fig2.patch.set_facecolor('white')
+
+        sns.heatmap(
+            cm_norm,
+            annot=True,
+            fmt=".2f",
+            cmap="YlGn",
+            xticklabels=label_encoder.classes_,
+            yticklabels=label_encoder.classes_,
+            linewidths=0.4,
+            linecolor='#f0f8f2',
+            vmin=0,
+            vmax=1,
+            ax=ax2,
+            annot_kws={"size":8}
+        )
+
+        ax2.set_xlabel(
+            "Predicted Crop",
+            fontsize=12,
+            fontweight='600',
+            color='#0d2010',
+            labelpad=10
+        )
+
+        ax2.set_ylabel(
+            "Actual Crop",
+            fontsize=12,
+            fontweight='600',
+            color='#0d2010',
+            labelpad=10
+        )
+
+        ax2.set_title("", pad=0)
+
+        plt.xticks(
+            rotation=45,
+            ha='right',
+            fontsize=9,
+            color='#1a3a28'
+        )
+
+        plt.yticks(
+            fontsize=9,
+            color='#1a3a28'
+        )
+
+        plt.tight_layout()
+        st.pyplot(fig2)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# CTA
+st.markdown("""
+<div class="cta-strip">
+    <h2 class="cta-title">Ready to try it on your field?</h2>
+    <p class="cta-sub">Scroll up, choose your input mode, and get your personalised crop recommendation in seconds.</p>
+    <a class="btn-primary" href="#" style="display:inline-block;">Get Recommendation ↑</a>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)  # close main-wrap
