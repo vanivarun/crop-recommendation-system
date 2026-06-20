@@ -26,6 +26,13 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Inter:wght@300;400;500;600&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Streamlit injects gap/margin between markdown blocks via flex containers —
+   the universal reset above has 0 specificity and loses to Streamlit's own
+   class-based rules, which is what causes the dark strip between hero and content */
+div.element-container:has(.hero-wrap) { margin: 0 !important; }
+div[data-testid="stVerticalBlock"]:has(> div.element-container:has(.hero-wrap)) { gap: 0 !important; }
+div[data-testid="stAppViewContainer"] > .main { padding-top: 0 !important; }
+div[data-testid="stToolbar"] { display: none !important; }
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 0 !important; max-width: 100% !important; }
@@ -60,6 +67,8 @@ section[data-testid="stSidebar"] { display: none !important; }
 .hero-tag {
     display: inline-flex; align-items: center; gap: 8px;
     background: rgba(134,220,120,0.18);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(134,220,120,0.4);
     color: #a8f0a0; font-size: 11px; font-weight: 600;
     letter-spacing: 2.5px; text-transform: uppercase;
@@ -143,19 +152,19 @@ section[data-testid="stSidebar"] { display: none !important; }
 .mode-tab.active .mode-tab-sub { color:rgba(255,255,255,.5); }
 
 /* ── FORM CARDS ── */
-.form-section { background:#fff; border:1.5px solid #e0ede5; border-radius:20px; padding:1.25rem; margin-bottom:1rem; }
-.form-section-title { font-size:11px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:#3d8b5e; margin-bottom:1.5rem; padding-bottom:.75rem; border-bottom:1.5px solid #e8f2ea; }
+.form-section { background:#1a2e1d; border:1.5px solid #2d4a30; border-radius:20px; padding:1.25rem; margin-bottom:1rem; }
+.form-section-title { font-size:11px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:#82dc6e; margin-bottom:1.5rem; padding-bottom:.75rem; border-bottom:1.5px solid #2d4a30; }
 
 /* Farmer question cards */
-.q-card { background:#f7fbf8; border:1px solid #ddeee2; border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
+.q-card { background:#16261a; border:1px solid #2d4a30; border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
 .q-label { font-size:13px; font-weight:600; color:#ffffff; margin-bottom:.5rem; }
 .q-hint  { font-size:11px; color:rgba(255,255,255,0.65); margin-bottom:.75rem; line-height:1.5; }
 
 /* Info callout */
-.callout { display:flex; gap:1rem; align-items:flex-start; background:#f0faf3; border:1px solid #b8e0c4; border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:2rem; }
+.callout { display:flex; gap:1rem; align-items:flex-start; background:#1a2e1d; border:1px solid #2d4a30; border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:2rem; }
 .callout-icon { font-size:20px; flex-shrink:0; }
-.callout-text { font-size:13px; color:#2a5a3a; line-height:1.6; }
-.callout-text strong { color:#0d2010; }
+.callout-text { font-size:13px; color:#c8e6c9; line-height:1.6; }
+.callout-text strong { color:#82dc6e; }
 
 /* Estimated values strip */
 .est-strip { background:#0d2010; border-radius:16px; padding:1.5rem 2rem; margin:1.5rem 0; display:grid; grid-template-columns:repeat(7,1fr); gap:1rem; }
@@ -175,30 +184,39 @@ section[data-testid="stSidebar"] { display: none !important; }
     width:300px; height:300px; border-radius:50%;
     background:radial-gradient(circle,rgba(134,220,120,.15) 0%,transparent 70%);
 }
-.result-crop-name { font-family:'Fraunces',serif; font-size:58px; font-weight:700; color:#f4f9f2; line-height:1; letter-spacing:-2px; }
+
+.result-crop {
+    font-family:'Fraunces',serif;
+    font-size:58px;
+    font-weight:700;
+    color:#f4f9f2;
+    line-height:1;
+    letter-spacing:-2px;
+}
 .result-conf-badge { display:inline-block; background:rgba(134,220,120,.2); border:1px solid rgba(134,220,120,.4); color:#86dc78; font-size:13px; font-weight:600; padding:5px 16px; border-radius:100px; margin-top:.75rem; }
 .result-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:.5rem; }
 
 .conf-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
-.conf-card { background:#fff; border:1.5px solid #e0ede5; border-radius:16px; padding:1.25rem; text-align:center; transition:border-color .2s; }
+.conf-card { background:#1a2e1d; border:1.5px solid #2d4a30; border-radius:16px; padding:1.25rem; text-align:center; transition:transform .25s ease, box-shadow .25s ease, border-color .2s; }
+.conf-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.35); border-color:#86dc78; }
 .conf-card:first-child { border-color:#86dc78; }
-.conf-rank { font-size:10px; color:#7a9a80; letter-spacing:2px; text-transform:uppercase; margin-bottom:.35rem; }
-.conf-crop { font-family:'Fraunces',serif; font-size:18px; font-weight:700; color:#0d2010; text-transform:capitalize; margin-bottom:.25rem; }
-.conf-pct  { font-size:26px; font-weight:700; color:#2d7a4f; }
+.conf-rank { font-size:10px; color:#82dc6e; letter-spacing:2px; text-transform:uppercase; margin-bottom:.35rem; }
+.conf-crop { font-family:'Fraunces',serif; font-size:18px; font-weight:700; color:#f0f8ee; text-transform:capitalize; margin-bottom:.25rem; }
+.conf-pct  { font-size:26px; font-weight:700; color:#82dc6e; }
 .conf-bar-bg { background:#e8f4ea; border-radius:100px; height:4px; margin-top:.75rem; overflow:hidden; }
 .conf-bar    { background:linear-gradient(90deg,#2d7a4f,#86dc78); height:100%; border-radius:100px; }
 
 /* ── SUMMARY TABLE ── */
 .summary-table { width:100%; border-collapse:collapse; }
 .summary-table th { background:#0d2010; color:rgba(255,255,255,.7); font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:.6rem 1rem; text-align:left; }
-.summary-table td { padding:.6rem 1rem; font-size:13px; color:#1a3a28; border-bottom:1px solid #edf5ef; }
+.summary-table td { padding:.6rem 1rem; font-size:13px; color:#e0f0e0; border-bottom:1px solid #2d4a30; }
 .summary-table tr:last-child td { border-bottom:none; }
-.summary-table tr:hover td { background:#f5fbf7; }
+.summary-table tr:hover td { background:#1f3522; }
 
 /* ── WIKI ── */
-.wiki-wrap { background:#f5fbf7; border:1.5px solid #c8e6d4; border-radius:18px; padding:1.5rem; height:100%; }
-.wiki-name { font-family:'Fraunces',serif; font-size:20px; color:#0d2010; margin-bottom:.6rem; }
-.wiki-desc { font-size:13px; color:#3a6040; line-height:1.75; margin-bottom:1rem; }
+.wiki-wrap { background:#1a2e1d; border:1.5px solid #2d4a30; border-radius:18px; padding:1.5rem; height:100%; }
+.wiki-name { font-family:'Fraunces',serif; font-size:20px; color:#f0f8ee; margin-bottom:.6rem; }
+.wiki-desc { font-size:13px; color:#c8e6c9; line-height:1.75; margin-bottom:1rem; }
 .wiki-link { font-size:12px; font-weight:600; color:#2d7a4f; text-decoration:none; }
 
 /* ── PERFORMANCE SECTION ── */
@@ -209,9 +227,10 @@ section[data-testid="stSidebar"] { display: none !important; }
 .acc-note   { font-size:13px; color:rgba(255,255,255,.55); line-height:1.6; max-width:400px; margin-top:.75rem; }
 
 /* ── CHART WRAPPER ── */
-.chart-card { background:#fff; border:1.5px solid #e0ede5; border-radius:20px; padding:2rem; margin-bottom:1.5rem; }
-.chart-title { font-family:'Fraunces',serif; font-size:20px; color:#0d2010; margin-bottom:.3rem; }
-.chart-sub   { font-size:13px; color:#6a8a75; margin-bottom:1.25rem; }
+.chart-card { background:#1a2e1d; border:1.5px solid #2d4a30; border-radius:20px; padding:2rem; margin-bottom:1.5rem; transition:box-shadow .25s ease; }
+.chart-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.chart-title { font-family:'Fraunces',serif; font-size:20px; color:#f0f8ee; margin-bottom:.3rem; }
+.chart-sub   { font-size:13px; color:#82dc6e; margin-bottom:1.25rem; }
 
 /* ── CTA strip at bottom ── */
 .cta-strip { background:linear-gradient(135deg,#0d2010,#1a4a2e); border-radius:24px; padding:3rem; text-align:center; margin-top:4rem; }
@@ -220,8 +239,6 @@ section[data-testid="stSidebar"] { display: none !important; }
 
 /* Streamlit widget overrides */
 div[data-testid="stSelectbox"] > label,
-div[data-testid="stNumberInput"] > label,
-div[data-testid="stSlider"] > label,
 div[data-testid="stRadio"] > label { display:none !important; }
 .stButton > button { border-radius:100px !important; font-weight:600 !important; }
 .stButton > button[kind="primary"] {
@@ -232,8 +249,24 @@ div[data-testid="stRadio"] > label { display:none !important; }
     background:transparent !important; border:1.5px solid #c8e6c4 !important;
     color:#2d7a4f !important;
 }
-div[data-baseweb="select"] > div { border-radius:10px !important; border-color:#d0e8d8 !important; }
-div[data-baseweb="input"] > div   { border-radius:10px !important; border-color:#d0e8d8 !important; }
+div[data-baseweb="select"] > div { border-radius:10px !important; border-color:#3d6b42 !important; background:#1f3522 !important; color:#e0f0e0 !important; }
+div[data-baseweb="input"] > div   { border-radius:10px !important; border-color:#3d6b42 !important; background:#1f3522 !important; color:#e0f0e0 !important; }
+
+@media (max-width: 768px) {
+    .hero-content { padding: 2.5rem 1.5rem; }
+    .hero-stats { position: static; padding: 1.5rem; flex-direction: column; gap: 1rem; }
+    .hero-wrap { min-height: auto; padding-bottom: 1rem; }
+
+    .est-strip { grid-template-columns: repeat(2, 1fr); }
+    .conf-grid { grid-template-columns: repeat(2, 1fr); }
+
+    .result-hero { flex-direction: column; text-align: center; gap: 1.5rem; padding: 2rem 1.5rem; }
+    .result-crop { font-size: 38px; }
+
+    .main-wrap { padding: 2.5rem 1.25rem; }
+
+    .summary-table { display: block; overflow-x: auto; white-space: nowrap; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -257,8 +290,12 @@ model         = artifacts['model']
 scaler        = artifacts['scaler']
 label_encoder = artifacts['le']
 feature_names = artifacts['features']
-try:    dataset_rows = pd.read_csv(DATA_PATH).shape[0]
-except: dataset_rows = 2200
+@st.cache_data
+def _get_dataset_rows():
+    try: return pd.read_csv(DATA_PATH).shape[0]
+    except: return 2200
+
+dataset_rows = _get_dataset_rows()
 
 # ── Farmer mode mappings ──────────────────────────────────────────────────────
 SOIL_MAP = {
@@ -300,19 +337,58 @@ CROP_EMOJI = {"rice":"🌾","wheat":"🌾","maize":"🌽","apple":"🍎","banana
               "mothbeans":"🫘","pigeonpeas":"🫘","muskmelon":"🍈","watermelon":"🍉",
               "pomegranate":"🍎"}
 
+# Map dataset crop keys -> real, correctly-titled Wikipedia article names
+WIKI_TITLE_MAP = {
+    "kidneybeans":"Kidney bean", "mungbean":"Mung bean", "blackgram":"Black gram",
+    "mothbeans":"Moth bean", "pigeonpeas":"Pigeon pea", "muskmelon":"Muskmelon",
+    "chickpea":"Chickpea", "lentil":"Lentil", "watermelon":"Watermelon",
+    "pomegranate":"Pomegranate", "papaya":"Papaya", "coconut":"Coconut",
+}
+
+@st.cache_data(ttl=86400, show_spinner=False)
 def fetch_wiki(name):
+    title = WIKI_TITLE_MAP.get(name.lower(), name).replace(' ', '_')
     try:
-        r = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{name.replace(' ','_')}",
-                         timeout=3, headers={"User-Agent":"agrisense/1.0"})
+        r = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}",
+                         timeout=5, headers={"User-Agent":"agrisense/1.0"})
         if r.status_code != 200: return None
         d = r.json()
         return {"description":d.get("extract",""), "image":d.get("thumbnail",{}).get("source")}
     except: return None
 
+# Fallback text + fallback image for every crop the model can predict
 FALLBACK = {
     "rice":"Staple cereal grown in flooded paddies. Requires warm, wet conditions.",
     "wheat":"Temperate cereal; the base of flour and bread worldwide.",
     "maize":"Versatile corn crop used for food, feed, and biofuel.",
+    "chickpea":"A protein-rich legume grown widely in semi-arid regions.",
+    "kidneybeans":"A nutrient-dense legume valued for its protein content.",
+    "pigeonpeas":"A drought-tolerant legume used widely in South Asian cuisine.",
+    "mothbeans":"A heat- and drought-resistant legume suited to arid soils.",
+    "mungbean":"A fast-growing legume used for food and soil nitrogen fixing.",
+    "blackgram":"A legume crop common in South Asian cooking, rich in protein.",
+    "lentil":"A small, protein-rich legume grown in cooler, drier climates.",
+    "pomegranate":"A fruit-bearing shrub thriving in semi-arid, hot climates.",
+    "banana":"A tropical fruit crop needing consistent warmth and humidity.",
+    "mango":"A tropical fruit tree requiring a warm, frost-free climate.",
+    "grapes":"A fruiting vine grown in temperate to subtropical climates.",
+    "watermelon":"A warm-season fruit crop needing long, hot growing seasons.",
+    "muskmelon":"A warm-climate fruit related to cantaloupe and honeydew.",
+    "apple":"A temperate fruit tree requiring a cold winter dormancy period.",
+    "orange":"A subtropical citrus fruit needing mild winters and warm summers.",
+    "papaya":"A fast-growing tropical fruit tree sensitive to frost.",
+    "coconut":"A tropical palm thriving in coastal, humid environments.",
+    "cotton":"A fiber crop requiring a long, warm growing season.",
+    "jute":"A fiber crop grown in hot, humid, monsoon-fed regions.",
+    "coffee":"A tropical shrub grown at altitude in warm, humid climates.",
+}
+
+# Static fallback images so a crop card is never empty if Wikipedia is unreachable
+FALLBACK_IMG = {
+    "rice":"https://images.unsplash.com/photo-1568347355280-d33fdb1ecb56?w=600&q=80",
+    "coffee":"https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=600&q=80",
+    "cotton":"https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=600&q=80",
+    # add more as desired — this dict is just consulted when wiki image is None
 }
 
 
@@ -459,7 +535,13 @@ if farmer_mode:
     rain = RAIN_MAP[rain_choice]
     temp = TEMP_MAP[temp_choice]
     if location.strip():
-        weather = fetch_location_weather(location)
+        with st.spinner(f"📡 Finding {location}..."):
+            weather = fetch_location_weather(location.strip())
+        if weather is None and location.strip():
+            st.warning(
+                "📍 Location lookup temporarily unavailable. "
+                "Using your dropdown selections instead."
+            )
     else:
         weather = None
      
@@ -472,9 +554,9 @@ if farmer_mode:
     rain_e = rain["rainfall"]
 
     if weather:
-        temp_e = float( weather["temperature"])
-        hum_e = float(weather["humidity"])
-        if "rainfall" in weather:
+        temp_e = float(weather.get("temperature", temp))
+        hum_e  = float(weather.get("humidity", rain["humidity"]))
+        if weather.get("rainfall") is not None:
             rain_e = float(weather["rainfall"])
     else:
         temp_e = temp
@@ -610,8 +692,9 @@ if predict_btn:
             with wc:
                 wiki = fetch_wiki(top_crop)
                 desc = (wiki.get("description") if wiki else None) or FALLBACK.get(top_crop.lower(),"")
-                if wiki and wiki.get("image"):
-                    try: st.image(wiki["image"], use_column_width=True)
+                img_url = (wiki.get("image") if wiki else None) or FALLBACK_IMG.get(top_crop.lower())
+                if img_url:
+                    try: st.image(img_url, use_container_width=True)
                     except: pass
                 st.markdown(f"""
                 <div class="wiki-wrap">
@@ -683,8 +766,9 @@ if artifacts['test_acc'] is not None:
         plt.tight_layout(); st.pyplot(fig)
         st.markdown('</div>', unsafe_allow_html=True)
 
-with st.expander("📊 Advanced Model Metrics"):
-    if artifacts['cm'] is not None:
+cm_expander = st.expander("📊 Advanced Model Metrics")
+if cm_expander.expanded and artifacts['cm'] is not None:
+    with cm_expander:
         st.markdown(
             '<div class="chart-card"><p class="chart-title">Confusion Matrix — Normalized (Test Set)</p><p class="chart-sub">Diagonal = correct predictions. 1.00 = perfect recall for that crop.</p>',
             unsafe_allow_html=True
